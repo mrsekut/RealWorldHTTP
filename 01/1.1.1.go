@@ -1,3 +1,4 @@
+// simple server
 package main
 
 import (
@@ -26,9 +27,6 @@ func main() {
 }
 
 /*
-通信内容をそのままコンソールに表示する
-handler関数は、httputil.DumpRequest関数を使ってリクエストに含まれる情報をテキストとして出力
-
-
-
+	通信内容をそのままコンソールに表示する
+	handler関数は、httputil.DumpRequest関数を使ってリクエストに含まれる情報をテキストとして出力
 */
