@@ -15,7 +15,7 @@ func main() {
 				http.Error(w, "Not authorized", 401)
 				return
 			}
-			fmt.Fprintf(w, "Not authorized")
+			fmt.Fprintf(w, "Authed!")
 		},
 	)
 	http.ListenAndServe(":18888", nil)
