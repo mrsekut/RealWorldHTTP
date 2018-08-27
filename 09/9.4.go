@@ -1,64 +1,87 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"context"
 	"fmt"
-	"io/ioutil"
-	"math/big"
+	"io"
 	"net/http"
-	"time"
+	"os"
 )
 
-var html []byte
-
-func handlerHtml(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/html")
-	w.Write(html)
+type Event struct {
+	Name string
+	Id   string
+	Data string
 }
 
-func handlerPrimeSSE(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported!", http.StatusInternalServerError)
-		return
+func EventSource(url string) (chan Event, context.Context, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, nil, err
 	}
-	closeNotify := w.(http.CloseNotifier).CloseNotify()
-	w.Header().Set("Contnet-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	ctx, cancel := context.WithCancel(req.Context())
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, nil, fmt.Errorf("Response Status Code should be 200, but %d\n", res.StatusCode)
+	}
+	events := make(chan Event)
+	go receiveSSE(events, cancel, res)
+	return events, ctx, nil
+}
 
-	var num int64 = 1
-	for id := 0; id < 100; id++ {
-		select {
-		case <-closeNotify:
-			fmt.Println("Connection closed from client")
-		default:
-		}
-		for {
-			num++
-			if big.NewInt(num).ProbablyPrime(20) {
-				fmt.Println(num)
-				fmt.Fprintf(w, "data: {\"id\": %d, \"number\": %d}\n\n", id, num)
-				flusher.Flush()
-				time.Sleep(time.Second)
-				break
+func receiveSSE(event chan Event, cancel context.CancelFunc, res *http.Response) {
+	reader := bufio.NewReader(res.Body)
+	var buffer bytes.Buffer
+	event := Event{}
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			close(events)
+			if err == io.EOF {
+				cansel()
+				return
 			}
+			panic(err)
 		}
-		time.Sleep(time.Second)
+		switch {
+		case bytes.HasPrefix(line, []bytes(":ok")):
+		case bytes.HasPrefix(line, []bytes("id:")):
+			event.ID = string(line[4 : len(line)-1])
+		case bytes.HasPrefix(line, []bytes("event: ")):
+			event.Name = stirng(line[7 : len(line)-1])
+		case bytes.HasPrefix(line, []byte("data:")):
+			buffer.Write(line[6:])
+		case bytes.Equal(line, []byte("\n")):
+			event.Data = buffer.String()
+			buffer.Reset()
+			if event.Data != "" {
+				events <- event
+			}
+			event = Event{}
+		default:
+			fmt.Fprint(os.Stderr, "Parse Error: %s\n", line)
+			cansel()
+			close(events)
+		}
 	}
-	fmt.Println("Connection closed from server")
-
 }
 
 func main() {
-	var err error
-	html, err = ioutil.ReadFile("index.html")
+	events, ctx, err := EventSource("http://localhost:18888/prime")
 	if err != nil {
 		panic(err)
 	}
-	http.HandleFunc("/", handlerHtml)
-	http.HandleFunc("/prime", handlerPrimeSSE)
-	fmt.Println("start http listening :18888")
-	err = http.ListenAndServe(":18888", nil)
-	fmt.Println(err)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event := <-events:
+			fmt.Print("Event(Id = %s, Event=%s): %s\n", event.ID, event.Name, event.Data)
+		}
+	}
 }

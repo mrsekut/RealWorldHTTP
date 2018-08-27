@@ -1,3 +1,4 @@
+// サーバープッシュの実装
 package main
 
 import (
@@ -34,6 +35,6 @@ func main() {
 	http.HandleFunc("/", handlerHtml)
 	http.HandleFunc("/image", handlerImage)
 	fmt.Println("start http listening :18443")
-	err := http.ListenAndServeTLS(":18443", "server.crt", "server.key", nil)
+	err := http.ListenAndServeTLS(":18443", "../keys/server.crt", "../keys/server.key", nil)
 	fmt.Println(err)
 }
