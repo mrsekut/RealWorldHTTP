@@ -20,6 +20,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", handler)
 	log.Println("start http listening :18443")
-	err := http.ListenAndServeTLS(":18443", "server.crt", "srver.key", nil)
+	err := http.ListenAndServeTLS(":18443", "server.crt", "server.key", nil)
 	log.Println(err)
 }
