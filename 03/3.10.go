@@ -15,12 +15,14 @@ func main() {
 		panic(err)
 	}
 
+	// http.DefaultClient = &http.Client{
 	client := http.Client{
 		Jar: jar,
 	}
 
 	for i := 0; i < 2; i++ {
-		resp, err := client.Get("http://localhost:18888")
+		// resp, err := http.Get("http://localhost:18888/cookie")
+		resp, err := client.Get("http://localhost:18888/cookie")
 		if err != nil {
 			panic(err)
 		}
@@ -30,5 +32,4 @@ func main() {
 		}
 		log.Println(string(dump))
 	}
-
 }
